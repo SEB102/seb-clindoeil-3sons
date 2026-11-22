@@ -73,6 +73,7 @@
 
     <details class="spoiler"><summary>Image et yeux</summary>
     <label class="chk"><input type="checkbox" id="showcam"> Image caméra</label>
+    <label class="chk">Comp. tête % <input type="number" id="comp" min="0" max="300" step="10" value="100" style="width:64px"></label>
 
     <div class="row"><span>Œil gauche</span><div class="bar"><i id="barL"></i></div></div>
     <div class="row"><span>Œil droit</span><div class="bar"><i id="barR"></i></div></div>
@@ -104,7 +105,7 @@
 <script src="clindoeil-core.js"></script>
 <script type="module">
 import { FaceLandmarker, FilesetResolver } from "./vision_bundle.mjs";
-const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter, eyesOpenIgnoringLookDown } = Clindoeil;
+const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter, eyesOpenIgnoringLookDown, headYawDeg } = Clindoeil;
 
 const $ = id => document.getElementById(id);
 const video = $('video'), view = $('view'), ctx = view.getContext('2d');
@@ -115,6 +116,11 @@ const det = new BlinkDetector({ high: 0.5, low: 0.3, refractoryMs: 150 });
 const detGL = new BlinkDetector({ high: 0.2, low: 0.12, refractoryMs: 150 });
 const detGR = new BlinkDetector({ high: 0.2, low: 0.12, refractoryMs: 150 });
 let gazeX = 0, faceOk = false, eyesOk = true;
+// Compensation de la rotation de la tête : le regard « dans la tête » (blendshapes) change quand on tourne la tête,
+// alors que le regard réel = regard dans la tête + rotation. Yaw positif = tête tournée vers la gauche de la personne.
+const DEG_TO_BS = 0.029;      // ≈ 1° de rotation ≈ 0,029 en unité de blendshape (estimation : ~34° par unité)
+let headComp = 1, lastYaw = 0, yawInit = false, centerYaw = 0;
+const yawAcc = { s: 0, n: 0 };
 const center = new GazeCenter(45);   // regard au repos, mesuré au démarrage (≈ 1,5 s) et à chaque clic sur « Centrer »
 let mode = 'both', volume = 0.8, showCam = false;
 let scoreL = 0, scoreR = 0;
@@ -201,7 +207,7 @@ $('mode').onchange = e => { mode = e.target.value; det.reset(); };
 $('th').oninput = e => { const v = +e.target.value; det.high = v; det.low = v * 0.6; $('thV').textContent = v.toFixed(2); };
 $('thg').oninput = e => { const v = +e.target.value; for (const d of [detGL, detGR]) { d.high = v; d.low = v * 0.6; } $('thgV').textContent = v.toFixed(2); };
 $('vol').oninput = e => { volume = +e.target.value; $('volV').textContent = volume.toFixed(2); };
-const recentrer = () => { center.reset(); detGL.reset(); detGR.reset(); status('Centrage… regardez l\'écran'); };
+const recentrer = () => { yawAcc.s = 0; yawAcc.n = 0; center.reset(); detGL.reset(); detGR.reset(); status('Centrage… regardez l\'écran'); };
 $('centrer').onclick = recentrer;
 // Plein écran : l'image seule. L'app S'OUVRE en plein cadre (navigateur : plein écran réel impossible sans geste).
 // Sortie : petite icône en bas à droite (ou Échap). Le bouton « ⛶ Plein écran » du panneau passe en vrai plein écran.
@@ -225,6 +231,7 @@ window.addEventListener('keydown', e => { if (e.key === 'Escape' && vidBox.class
 for (const ev of ['click', 'dblclick']) $('centrer-fs').addEventListener(ev, e => e.stopPropagation());
 $('centrer-fs').onclick = recentrer;
 $('face').onclick = () => { faceIdx = 1 - faceIdx; P = FACES[faceIdx]; $('face').textContent = 'Visage ' + (faceIdx + 1); };
+$('comp').onchange = e => { const p = Math.max(0, Math.min(300, parseFloat(e.target.value))); headComp = (isNaN(p) ? 100 : p) / 100; e.target.value = Math.round(headComp * 100); };
 $('showcam').onchange = e => { showCam = e.target.checked; };
 
 // ── Yeux dessinés (image caméra masquée) ─────────────────────────────────
@@ -329,7 +336,7 @@ function drawMire() {
 let landmarker = null, lastT = -1, running = false, fileset = null, delegate = 'GPU', switching = false;
 const makeLandmarker = del => FaceLandmarker.createFromOptions(fileset, {
   baseOptions: { modelAssetPath: './face_landmarker.task', delegate: del },
-  outputFaceBlendshapes: true, runningMode: 'VIDEO', numFaces: 1
+  outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true, runningMode: 'VIDEO', numFaces: 1
 });
 // Si le GPU échoue en cours de route (certains mobiles), repli automatique sur le processeur
 async function fallbackCPU() {
@@ -377,14 +384,20 @@ function frame() {
       if (ev === 'close') play('close');
       // regard : seulement quand les yeux sont ouverts
       const g = gazeScores(get);
+      const mats = res.facialTransformationMatrixes;
+      const yaw = mats && mats.length ? headYawDeg(mats[0].data) : null;
+      if (yaw !== null) { if (!yawInit) { lastYaw = yaw; yawInit = true; } else lastYaw += (yaw - lastYaw) * 0.3; }
       const ouverts = Math.max(scoreL, scoreR) < det.high;   // même critère que la détection des yeux fermés
       // pendant le centrage : le regard vers le bas (paupières qui descendent) est ignoré
       const ouvertsCentrage = eyesOpenIgnoringLookDown(scoreL, scoreR, get('eyeLookDownLeft'), get('eyeLookDownRight'), det.high);
       eyesOk = center.ready ? ouverts : ouvertsCentrage;
       if (ouvertsCentrage && !center.ready) {
-        if (center.add(g.left, g.right)) { status('Centré ✓'); setTimeout(() => { if ($('status').textContent === 'Centré ✓') status('Clignez des yeux'); }, 1500); }
+        if (yaw !== null) { yawAcc.s += yaw; yawAcc.n++; }
+        if (center.add(g.left, g.right)) { centerYaw = yawAcc.n ? yawAcc.s / yawAcc.n : lastYaw; status('Centré ✓'); setTimeout(() => { if ($('status').textContent === 'Centré ✓') status('Clignez des yeux'); }, 1500); }
       }
-      const c = center.ready ? center.apply(g.left, g.right) : { left: 0, right: 0 };
+      // regard corrigé de la rotation de la tête (appliqué après le centrage)
+      const comp = (yawInit && center.ready) ? DEG_TO_BS * headComp * (lastYaw - centerYaw) : 0;
+      const c = center.ready ? center.apply(g.left + comp, g.right - comp) : { left: 0, right: 0 };
       const gl = ouverts ? c.left : 0, gr = ouverts ? c.right : 0;
       $('barGL').style.width = (gl * 100) + '%'; $('barGR').style.width = (gr * 100) + '%';
       gazeX = ouverts ? Math.max(-1, Math.min(1, (c.right - c.left) * 1.6)) : gazeX;

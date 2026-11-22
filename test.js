@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter, eyesOpenIgnoringLookDown } = require('./clindoeil-core.js');
+const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter, eyesOpenIgnoringLookDown, headYawDeg } = require('./clindoeil-core.js');
 
 // Un clignement = un seul déclenchement
 let d = new BlinkDetector({ high: 0.5, low: 0.3, refractoryMs: 150 });
@@ -58,4 +58,8 @@ const gp = new GazeCenter(3); gp.add(0.9, 0.9); gp.add(0.9, 0.9); gp.add(0.9, 0.
 assert.ok(eyesOpenIgnoringLookDown(0.6, 0.6, 0.8, 0.8, 0.5));
 assert.ok(!eyesOpenIgnoringLookDown(0.6, 0.6, 0.0, 0.0, 0.5));
 assert.ok(!eyesOpenIgnoringLookDown(0.95, 0.95, 0.3, 0.3, 0.5), 'yeux vraiment fermés');
+// Rotation de la tête : Ry(θ) en colonne-major, θ = 0.3 rad → +17.19°, −0.3 → −17.19°
+const ry = t => { const c = Math.cos(t), s = Math.sin(t); const M = new Array(16).fill(0); M[0] = c; M[2] = -s; M[5] = 1; M[8] = s; M[10] = c; M[15] = 1; return M; };
+assert.ok(Math.abs(headYawDeg(ry(0.3)) - 17.1887) < 0.01);
+assert.ok(Math.abs(headYawDeg(ry(-0.3)) + 17.1887) < 0.01);
 console.log('OK');

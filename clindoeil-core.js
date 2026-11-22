@@ -220,7 +220,11 @@
     return Math.max(blinkL - 0.7 * downL, blinkR - 0.7 * downR) < thr;
   }
 
-  const api = { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter, eyesOpenIgnoringLookDown };
+  // Rotation de la tête à gauche/droite (degrés) depuis la matrice de transformation du visage.
+  // Positif = tête tournée vers la gauche de la personne (nez vers la droite de l'image brute).
+  function headYawDeg(d) { return Math.atan2(-d[2], Math.hypot(d[0], d[1])) * 180 / Math.PI; }
+
+  const api = { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter, eyesOpenIgnoringLookDown, headYawDeg };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Clindoeil = api;
 })(typeof window !== 'undefined' ? window : globalThis);
