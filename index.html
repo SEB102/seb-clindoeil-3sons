@@ -65,7 +65,7 @@
     </select>
 
     <div class="row"><span>Seuil yeux fermés <b id="thV">0.50</b></span><input type="range" id="th" min="0.2" max="0.9" step="0.01" value="0.5"></div>
-    <div class="row"><span>Seuil regard <b id="thgV">0.40</b></span><input type="range" id="thg" min="0.15" max="0.9" step="0.01" value="0.4"></div>
+    <div class="row"><span>Seuil regard <b id="thgV">0.20</b></span><input type="range" id="thg" min="0.1" max="0.9" step="0.01" value="0.2"></div>
     <div class="row"><span>Volume <b id="volV">0.80</b></span><input type="range" id="vol" min="0" max="1" step="0.01" value="0.8"></div>
 
     <div id="slots"></div>
@@ -88,8 +88,8 @@ const status = t => $('status').textContent = t;
 
 let actx = null;
 const det = new BlinkDetector({ high: 0.5, low: 0.3, refractoryMs: 150 });
-const detGL = new BlinkDetector({ high: 0.4, low: 0.24, refractoryMs: 150 });
-const detGR = new BlinkDetector({ high: 0.4, low: 0.24, refractoryMs: 150 });
+const detGL = new BlinkDetector({ high: 0.2, low: 0.12, refractoryMs: 150 });
+const detGR = new BlinkDetector({ high: 0.2, low: 0.12, refractoryMs: 150 });
 let gazeX = 0;
 let mode = 'both', volume = 0.8, showCam = false;
 let scoreL = 0, scoreR = 0;
