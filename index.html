@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SEB-CLINDOEIL 3 SONS</title>
+<style>
+  :root { --bg:#0e0f12; --fg:#e8e8ea; --mut:#8b8d96; --acc:#00e5ff; --card:#181a20; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.4 -apple-system,system-ui,sans-serif; padding:16px; display:flex; flex-direction:column; align-items:center; min-height:100vh; }
+  h1 { font-size:18px; margin:0 0 12px; letter-spacing:.08em; text-align:center; }
+  .wrap { display:grid; grid-template-columns:1fr 640px 1fr; gap:16px; align-items:start; width:100%; }
+  .wrap .panel { grid-column:1; grid-row:1; justify-self:start; }
+  .wrap .vid { grid-column:2; grid-row:1; }
+  @media (max-width:1000px) { .wrap { grid-template-columns:minmax(0,1fr); justify-items:center; } .wrap .panel, .wrap .vid { grid-column:1; justify-self:center; } .wrap .vid { grid-row:1; } .wrap .panel { grid-row:2; } }
+  .vid { position:relative; width:640px; max-width:100%; background:#000; border-radius:10px; overflow:hidden; }
+  canvas { display:block; width:100%; height:auto; }
+  .flash { position:absolute; inset:0; background:var(--acc); opacity:0; pointer-events:none; transition:opacity .25s; }
+  .flash.on { opacity:.3; transition:none; }
+  .panel { width:300px; max-width:100%; background:var(--card); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:12px; }
+  button, select, label.btn { background:#262932; color:var(--fg); border:1px solid #363a46; border-radius:8px; padding:8px 10px; font:inherit; cursor:pointer; text-align:center; }
+  button.main { background:var(--acc); color:#001317; border-color:var(--acc); font-weight:600; padding:9px 12px; }
+  button:disabled { opacity:.4; cursor:default; }
+  .row { display:flex; flex-direction:column; gap:4px; }
+  .row span { display:flex; justify-content:space-between; color:var(--mut); font-size:13px; }
+  input[type=range] { width:100%; accent-color:var(--acc); }
+  .bar { height:8px; background:#262932; border-radius:4px; position:relative; overflow:hidden; }
+  .bar i { position:absolute; left:0; top:0; bottom:0; width:0; background:var(--acc); }
+  #status { color:var(--mut); font-size:13px; min-height:1.4em; }
+  .slot { border-top:1px solid #2a2d38; padding-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .slot h3 { grid-column:1/-1; margin:0; font-size:13px; font-weight:600; letter-spacing:.06em; }
+  .slot .sname { grid-column:1/-1; color:var(--mut); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chk { display:flex; align-items:center; gap:8px; cursor:pointer; }
+  .chk input { accent-color:var(--acc); width:16px; height:16px; }
+  footer { margin-top:auto; padding-top:24px; text-align:center; color:var(--mut); font-size:12px; letter-spacing:.08em; line-height:1.7; }
+  footer a { color:#a9b6ff; text-decoration:underline; text-underline-offset:3px; }
+  footer a:hover { color:#fff; }
+</style>
+</head>
+<body>
+<h1>SEB-CLINDOEIL · 3 SONS</h1>
+<div class="wrap">
+  <div class="vid">
+    <video id="video" playsinline muted style="display:none"></video>
+    <canvas id="view" width="640" height="480"></canvas>
+    <div class="flash" id="flash"></div>
+  </div>
+  <div class="panel">
+    <button class="main" id="start" hidden>Réessayer</button>
+    <div id="status"></div>
+
+    <label class="chk"><input type="checkbox" id="showcam"> Image caméra</label>
+
+    <div class="row"><span>Œil gauche</span><div class="bar"><i id="barL"></i></div></div>
+    <div class="row"><span>Œil droit</span><div class="bar"><i id="barR"></i></div></div>
+
+    <div class="row"><span>Regard à gauche</span><div class="bar"><i id="barGL"></i></div></div>
+    <div class="row"><span>Regard à droite</span><div class="bar"><i id="barGR"></i></div></div>
+
+    <select id="mode">
+      <option value="both">Les deux yeux</option>
+      <option value="either">N'importe quel œil</option>
+      <option value="left">Œil gauche seul</option>
+      <option value="right">Œil droit seul</option>
+    </select>
+
+    <div class="row"><span>Seuil yeux fermés <b id="thV">0.50</b></span><input type="range" id="th" min="0.2" max="0.9" step="0.01" value="0.5"></div>
+    <div class="row"><span>Seuil regard <b id="thgV">0.40</b></span><input type="range" id="thg" min="0.15" max="0.9" step="0.01" value="0.4"></div>
+    <div class="row"><span>Volume <b id="volV">0.80</b></span><input type="range" id="vol" min="0" max="1" step="0.01" value="0.8"></div>
+
+    <div id="slots"></div>
+  </div>
+</div>
+
+<footer>
+  SEB-CLINDOEIL 3 SONS · Sébastien Gay · Novembre 2026 · <a href="MODE-D-EMPLOI.html" target="_blank" rel="noopener">Mode d'emploi</a> · <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">Licence CC BY-NC 4.0</a><br>
+  Détection : <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker" target="_blank" rel="noopener">MediaPipe Face Landmarker</a> par Google (<a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache 2.0</a>)
+</footer>
+
+<script src="clindoeil-core.js"></script>
+<script type="module">
+import { FaceLandmarker, FilesetResolver } from "./vision_bundle.mjs";
+const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores } = Clindoeil;
+
+const $ = id => document.getElementById(id);
+const video = $('video'), view = $('view'), ctx = view.getContext('2d');
+const status = t => $('status').textContent = t;
+
+let actx = null;
+const det = new BlinkDetector({ high: 0.5, low: 0.3, refractoryMs: 150 });
+const detGL = new BlinkDetector({ high: 0.4, low: 0.24, refractoryMs: 150 });
+const detGR = new BlinkDetector({ high: 0.4, low: 0.24, refractoryMs: 150 });
+let gazeX = 0;
+let mode = 'both', volume = 0.8, showCam = false;
+let scoreL = 0, scoreR = 0;
+
+// Trois sons : kick (regard à gauche), caisse claire (regard à droite), cymbale (yeux fermés)
+const slots = {
+  left:  { title: 'Regard à gauche · kick',          def: 'kick',          gen: makeDefaultSampleData, buf: null, name: 'kick' },
+  right: { title: 'Regard à droite · caisse claire', def: 'caisse-claire', gen: makeSnareSampleData,   buf: null, name: 'caisse-claire' },
+  close: { title: 'Yeux fermés · cymbale',           def: 'cymbale',       gen: makeCymbalSampleData,  buf: null, name: 'cymbale' }
+};
+
+function ensureAudio() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+for (const ev of ['pointerdown', 'keydown', 'touchstart']) {
+  window.addEventListener(ev, () => {
+    ensureAudio();
+    if (running && $('status').textContent.startsWith('Cliquez')) status('Clignez des yeux');
+  }, { passive: true });
+}
+function setDefault(key) {
+  const s = slots[key], a = ensureAudio();
+  const d = s.gen(a.sampleRate);
+  s.buf = a.createBuffer(1, d.length, a.sampleRate);
+  s.buf.copyToChannel(d, 0);
+  s.name = s.def;
+  s.label.textContent = s.def + ' (par défaut)';
+}
+function play(key) {
+  const s = slots[key]; if (!s.buf) return;
+  const a = ensureAudio();
+  const src = a.createBufferSource(); src.buffer = s.buf;
+  const g = a.createGain(); g.gain.value = volume;
+  src.connect(g).connect(a.destination); src.start();
+  const f = $('flash'); f.classList.add('on');
+  requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on')));
+}
+function download(key) {
+  const s = slots[key]; if (!s.buf) setDefault(key);
+  const ch = []; for (let c = 0; c < s.buf.numberOfChannels; c++) ch.push(s.buf.getChannelData(c));
+  const blob = new Blob([encodeWav(ch, s.buf.sampleRate)], { type: 'audio/wav' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = s.name + '.wav';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// Construction des deux blocs de sample
+for (const key of Object.keys(slots)) {
+  const s = slots[key];
+  const box = document.createElement('div'); box.className = 'slot';
+  box.innerHTML = `<h3>${s.title}</h3>
+    <label class="btn">Charger<input type="file" accept="audio/*" hidden></label>
+    <button data-a="def">Par défaut</button>
+    <button data-a="play">Jouer</button>
+    <button data-a="dl">Télécharger WAV</button>
+    <div class="sname"></div>`;
+  s.label = box.querySelector('.sname');
+  box.querySelector('[data-a=def]').onclick = () => setDefault(key);
+  box.querySelector('[data-a=play]').onclick = () => { ensureAudio(); if (!s.buf) setDefault(key); play(key); };
+  box.querySelector('[data-a=dl]').onclick = () => download(key);
+  box.querySelector('input').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      s.buf = await ensureAudio().decodeAudioData(await f.arrayBuffer());
+      s.name = f.name.replace(/\.[^.]+$/, '');
+      s.label.textContent = f.name;
+    } catch (err) { status('Fichier audio illisible'); }
+    e.target.value = '';
+  };
+  $('slots').appendChild(box);
+  s.label.textContent = s.def + ' (par défaut)';
+}
+
+$('mode').onchange = e => { mode = e.target.value; det.reset(); };
+$('th').oninput = e => { const v = +e.target.value; det.high = v; det.low = v * 0.6; $('thV').textContent = v.toFixed(2); };
+$('thg').oninput = e => { const v = +e.target.value; for (const d of [detGL, detGR]) { d.high = v; d.low = v * 0.6; } $('thgV').textContent = v.toFixed(2); };
+$('vol').oninput = e => { volume = +e.target.value; $('volV').textContent = volume.toFixed(2); };
+$('showcam').onchange = e => { showCam = e.target.checked; };
+
+// ── Yeux dessinés (image caméra masquée) ─────────────────────────────────
+function drawEye(cx, cy, closure, gx) {
+  const w = 125, h = 88;
+  const ctrlOpen = cy - 2 * h;
+  const lidCtrl = ctrlOpen + closure * 3.8 * h;       // bord de la paupière
+  const crease = ctrlOpen - 40;                         // haut de la paupière
+  const almond = () => {
+    ctx.beginPath();
+    ctx.moveTo(cx - w, cy);
+    ctx.quadraticCurveTo(cx, ctrlOpen, cx + w, cy);
+    ctx.quadraticCurveTo(cx, cy + 2 * h, cx - w, cy);
+    ctx.closePath();
+  };
+  // globe oculaire
+  ctx.save(); almond(); ctx.clip();
+  ctx.fillStyle = '#f6f6f2'; ctx.fillRect(cx - w, cy - 2 * h, 2 * w, 4 * h);
+  const ox = cx + gx * 48;                                // l'iris suit le regard
+  ctx.beginPath(); ctx.arc(ox, cy + 2, 52, 0, Math.PI * 2); ctx.fillStyle = '#3b82c4'; ctx.fill();
+  ctx.beginPath(); ctx.arc(ox, cy + 2, 40, 0, Math.PI * 2); ctx.fillStyle = '#2a66a3'; ctx.fill();
+  ctx.beginPath(); ctx.arc(ox, cy + 2, 22, 0, Math.PI * 2); ctx.fillStyle = '#05070a'; ctx.fill();
+  ctx.beginPath(); ctx.arc(ox - 16, cy - 16, 11, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(ox + 14, cy + 16, 5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill();
+  // paupière supérieure (peau), du pli jusqu'au bord mobile
+  ctx.beginPath();
+  ctx.moveTo(cx - w - 6, cy);
+  ctx.quadraticCurveTo(cx, crease, cx + w + 6, cy);
+  ctx.lineTo(cx + w, cy);
+  ctx.quadraticCurveTo(cx, lidCtrl, cx - w, cy);
+  ctx.closePath();
+  ctx.fillStyle = '#dfa180'; ctx.fill();
+  ctx.restore();
+  // contour bas
+  ctx.lineWidth = 4; ctx.strokeStyle = '#2a1a14'; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx - w, cy); ctx.quadraticCurveTo(cx, cy + 2 * h, cx + w, cy); ctx.stroke();
+  // bord de la paupière
+  ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(cx - w, cy); ctx.quadraticCurveTo(cx, lidCtrl, cx + w, cy); ctx.stroke();
+  // longs cils le long du bord, qui basculent vers le bas à la fermeture
+  const N = 17;
+  for (let i = 0; i < N; i++) {
+    const t = 0.06 + 0.88 * i / (N - 1);
+    const px = (1 - t) * (1 - t) * (cx - w) + 2 * (1 - t) * t * cx + t * t * (cx + w);
+    const py = (1 - t) * (1 - t) * cy + 2 * (1 - t) * t * lidCtrl + t * t * cy;
+    const side = (px - cx) / w;                       // -1 gauche … +1 droite
+    const len = 52 + 24 * Math.sin(Math.PI * t) + (i % 2 ? 0 : 8);
+    const up = { x: side * 0.75, y: -1 }, down = { x: side * 0.35, y: 1 };
+    let dx = up.x * (1 - closure) + down.x * closure;
+    let dy = up.y * (1 - closure) + down.y * closure;
+    const m = Math.hypot(dx, dy); dx /= m; dy /= m;
+    const ex = px + dx * len, ey = py + dy * len;
+    const curl = 10 * Math.sign(side || 1) * (1 - closure * 0.6);
+    ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.moveTo(px, py);
+    ctx.quadraticCurveTo(px + dx * len * 0.55 + curl * 0.4, py + dy * len * 0.55, ex + curl, ey);
+    ctx.stroke();
+  }
+}
+function drawEyes() {
+  ctx.fillStyle = '#f1cfb6'; ctx.fillRect(0, 0, view.width, view.height);
+  // image miroir : l'œil gauche de l'utilisateur est dessiné à gauche
+  drawEye(180, 260, scoreL, gazeX);
+  drawEye(460, 260, scoreR, gazeX);
+}
+
+// ── Détection ────────────────────────────────────────────────────────────
+let landmarker = null, lastT = -1, running = false;
+
+async function start() {
+  if (running) return;
+  $('start').hidden = true;
+  ensureAudio(); for (const k in slots) if (!slots[k].buf) setDefault(k);
+  try {
+    status('Chargement du modèle…');
+    const fs = await FilesetResolver.forVisionTasks('.');
+    landmarker = await FaceLandmarker.createFromOptions(fs, {
+      baseOptions: { modelAssetPath: './face_landmarker.task', delegate: 'CPU' },
+      outputFaceBlendshapes: true, runningMode: 'VIDEO', numFaces: 1
+    });
+    status('Caméra…');
+    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    await video.play();
+    running = true; status(actx.state === 'running' ? 'Clignez des yeux' : 'Cliquez dans la page pour activer le son');
+  } catch (err) {
+    status('Erreur : ' + (err && err.message || err));
+    $('start').hidden = false;
+  }
+}
+$('start').onclick = start;
+start();
+
+function frame() {
+  if (running && video.readyState >= 2 && video.currentTime !== lastT) {
+    lastT = video.currentTime;
+    const now = performance.now();
+    const res = landmarker.detectForVideo(video, now);
+    const bs = res.faceBlendshapes && res.faceBlendshapes[0];
+    if (bs) {
+      const get = n => (bs.categories.find(c => c.categoryName === n) || {}).score || 0;
+      scoreL = get('eyeBlinkLeft'); scoreR = get('eyeBlinkRight');
+      $('barL').style.width = (scoreL * 100) + '%'; $('barR').style.width = (scoreR * 100) + '%';
+      const ev = det.update(blinkScore(scoreL, scoreR, mode), now);
+      if (ev === 'close') play('close');
+      // regard : seulement quand les yeux sont ouverts
+      const g = gazeScores(get);
+      const ouverts = Math.max(scoreL, scoreR) < 0.35;
+      const gl = ouverts ? g.left : 0, gr = ouverts ? g.right : 0;
+      $('barGL').style.width = (gl * 100) + '%'; $('barGR').style.width = (gr * 100) + '%';
+      gazeX = ouverts ? Math.max(-1, Math.min(1, (g.right - g.left) * 1.6)) : gazeX;
+      if (detGL.update(gl, now) === 'close') play('left');
+      if (detGR.update(gr, now) === 'close') play('right');
+    }
+  }
+  if (showCam && running) {
+    ctx.save(); ctx.translate(view.width, 0); ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, view.width, view.height); ctx.restore();
+  } else if (showCam) {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, view.width, view.height);
+  } else {
+    drawEyes();
+  }
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>
