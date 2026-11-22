@@ -254,6 +254,33 @@ function drawEyes() {
   drawEye(460, 260, scoreR, gazeX);
 }
 
+// ── Mire affichée pendant le centrage : regardez le point rouge ──────────
+function drawMire() {
+  const x = view.width / 2, y = view.height / 2;
+  const pulse = 1 + 0.08 * Math.sin(performance.now() / 160);
+  const halo = (draw) => {                       // contour clair + foncé : visible sur tous les fonds
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.lineWidth = 9; draw();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; draw();
+  };
+  ctx.save();
+  halo(() => { ctx.beginPath(); ctx.arc(x, y, 46 * pulse, 0, Math.PI * 2); ctx.stroke(); });
+  halo(() => { ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI * 2); ctx.stroke(); });
+  halo(() => { ctx.beginPath(); ctx.moveTo(x - 70, y); ctx.lineTo(x - 30, y); ctx.moveTo(x + 30, y); ctx.lineTo(x + 70, y);
+               ctx.moveTo(x, y - 70); ctx.lineTo(x, y - 30); ctx.moveTo(x, y + 30); ctx.lineTo(x, y + 70); ctx.stroke(); });
+  ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fillStyle = '#ff2a2a'; ctx.fill();
+  // progression du centrage
+  const p = Math.min(1, center.n / center.frames);
+  if (p > 0) {
+    ctx.beginPath(); ctx.arc(x, y, 60, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.stroke();
+  }
+  ctx.font = 'bold 22px -apple-system, system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText('Regardez la mire', x, y + 112);
+  ctx.fillStyle = '#fff'; ctx.fillText('Regardez la mire', x, y + 112);
+  ctx.restore();
+}
+
 // ── Détection ────────────────────────────────────────────────────────────
 let landmarker = null, lastT = -1, running = false, fileset = null, delegate = 'GPU', switching = false;
 const makeLandmarker = del => FaceLandmarker.createFromOptions(fileset, {
@@ -324,6 +351,7 @@ function frame() {
   } else {
     drawEyes();
   }
+  if (running && !center.ready) drawMire();
   requestAnimationFrame(frame);
 }
 frame();
