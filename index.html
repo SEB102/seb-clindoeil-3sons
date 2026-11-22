@@ -36,6 +36,9 @@
   details.spoiler > summary { cursor:pointer; font-size:14px; }
   details.spoiler[open] > summary { margin-bottom:10px; }
   details.spoiler > :not(summary) { margin-top:10px; }
+  /* Plein écran : seule l'image animée reste visible */
+  .vid:fullscreen, .vid:-webkit-full-screen, .vid.pseudo-fs { position:fixed; inset:0; z-index:50; width:100vw; max-width:none; height:100vh; border-radius:0; background:#000; display:flex; align-items:center; justify-content:center; }
+  .vid:fullscreen canvas, .vid:-webkit-full-screen canvas, .vid.pseudo-fs canvas { width:min(100vw, calc(100vh * 4 / 3)); height:min(100vh, calc(100vw * 3 / 4)); }
   footer { position:fixed; left:0; right:0; bottom:0; z-index:5; background:var(--bg); border-top:1px solid #2a2d38; padding:8px 12px; text-align:center; color:var(--mut); font-size:12px; letter-spacing:.08em; line-height:1.7; }
   footer a { color:#a9b6ff; text-decoration:underline; text-underline-offset:3px; }
   footer a:hover { color:#fff; }
@@ -55,6 +58,8 @@
 
     <button id="face" type="button">Visage 1</button>
     <button id="centrer" type="button" title="Regardez l'écran droit devant vous pendant 2 secondes">◎ Centrer</button>
+
+    <button id="fs" type="button">⛶ Plein écran</button>
 
     <details class="spoiler"><summary>Image et yeux</summary>
     <label class="chk"><input type="checkbox" id="showcam"> Image caméra</label>
@@ -187,6 +192,23 @@ $('th').oninput = e => { const v = +e.target.value; det.high = v; det.low = v * 
 $('thg').oninput = e => { const v = +e.target.value; for (const d of [detGL, detGR]) { d.high = v; d.low = v * 0.6; } $('thgV').textContent = v.toFixed(2); };
 $('vol').oninput = e => { volume = +e.target.value; $('volV').textContent = volume.toFixed(2); };
 $('centrer').onclick = () => { center.reset(); detGL.reset(); detGR.reset(); status('Centrage… regardez l\'écran'); };
+// Plein écran : l'image seule. Échap pour quitter ; sur iPhone (pas de plein écran d'élément) : mode plein cadre, toucher l'image pour quitter.
+const vidBox = document.querySelector('.vid');
+const fsActive = () => document.fullscreenElement || document.webkitFullscreenElement || vidBox.classList.contains('pseudo-fs');
+function toggleFullscreen() {
+  if (fsActive()) {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (document.webkitFullscreenElement) document.webkitExitFullscreen();
+    vidBox.classList.remove('pseudo-fs');
+    return;
+  }
+  const req = vidBox.requestFullscreen || vidBox.webkitRequestFullscreen;
+  if (req) { try { const r = req.call(vidBox); if (r && r.catch) r.catch(() => vidBox.classList.add('pseudo-fs')); } catch (e) { vidBox.classList.add('pseudo-fs'); } }
+  else vidBox.classList.add('pseudo-fs');
+}
+$('fs').onclick = toggleFullscreen;
+vidBox.addEventListener('dblclick', () => { if (fsActive()) toggleFullscreen(); });
+vidBox.addEventListener('click', () => { if (vidBox.classList.contains('pseudo-fs')) toggleFullscreen(); });
 $('face').onclick = () => { faceIdx = 1 - faceIdx; P = FACES[faceIdx]; $('face').textContent = 'Visage ' + (faceIdx + 1); };
 $('showcam').onchange = e => { showCam = e.target.checked; };
 
