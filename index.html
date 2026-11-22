@@ -53,6 +53,8 @@
     <button class="main" id="start" hidden>Réessayer</button>
     <div id="status"></div>
 
+    <button id="face" type="button">Visage 1</button>
+
     <details class="spoiler"><summary>Image et yeux</summary>
     <label class="chk"><input type="checkbox" id="showcam"> Image caméra</label>
 
@@ -101,6 +103,12 @@ let mode = 'both', volume = 0.8, showCam = false;
 let scoreL = 0, scoreR = 0;
 
 // Trois sons : kick (regard à gauche), caisse claire (regard à droite), cymbale (yeux fermés)
+// Deux visages : 1 = noir, yeux marrons (par défaut) ; 2 = blanc, yeux bleus
+const FACES = [
+  { bg: '#7d543b', sclera: '#f3efe6', iris1: '#7a4a22', iris2: '#4e2b12', pupil: '#050302', lid: '#5f3d2b', line: '#0a0504' },
+  { bg: '#f1cfb6', sclera: '#f6f6f2', iris1: '#3b82c4', iris2: '#2a66a3', pupil: '#05070a', lid: '#dfa180', line: '#2a1a14' }
+];
+let faceIdx = 0, P = FACES[0];
 const slots = {
   left:  { title: 'Regard à gauche · kick',          def: 'kick',          gen: makeDefaultSampleData, buf: null, name: 'kick' },
   right: { title: 'Regard à droite · caisse claire', def: 'caisse-claire', gen: makeSnareSampleData,   buf: null, name: 'caisse-claire' },
@@ -176,6 +184,7 @@ $('mode').onchange = e => { mode = e.target.value; det.reset(); };
 $('th').oninput = e => { const v = +e.target.value; det.high = v; det.low = v * 0.6; $('thV').textContent = v.toFixed(2); };
 $('thg').oninput = e => { const v = +e.target.value; for (const d of [detGL, detGR]) { d.high = v; d.low = v * 0.6; } $('thgV').textContent = v.toFixed(2); };
 $('vol').oninput = e => { volume = +e.target.value; $('volV').textContent = volume.toFixed(2); };
+$('face').onclick = () => { faceIdx = 1 - faceIdx; P = FACES[faceIdx]; $('face').textContent = 'Visage ' + (faceIdx + 1); };
 $('showcam').onchange = e => { showCam = e.target.checked; };
 
 // ── Yeux dessinés (image caméra masquée) ─────────────────────────────────
@@ -193,11 +202,11 @@ function drawEye(cx, cy, closure, gx) {
   };
   // globe oculaire
   ctx.save(); almond(); ctx.clip();
-  ctx.fillStyle = '#f6f6f2'; ctx.fillRect(cx - w, cy - 2 * h, 2 * w, 4 * h);
+  ctx.fillStyle = P.sclera; ctx.fillRect(cx - w, cy - 2 * h, 2 * w, 4 * h);
   const ox = cx + gx * 48;                                // l'iris suit le regard
-  ctx.beginPath(); ctx.arc(ox, cy + 2, 52, 0, Math.PI * 2); ctx.fillStyle = '#3b82c4'; ctx.fill();
-  ctx.beginPath(); ctx.arc(ox, cy + 2, 40, 0, Math.PI * 2); ctx.fillStyle = '#2a66a3'; ctx.fill();
-  ctx.beginPath(); ctx.arc(ox, cy + 2, 22, 0, Math.PI * 2); ctx.fillStyle = '#05070a'; ctx.fill();
+  ctx.beginPath(); ctx.arc(ox, cy + 2, 52, 0, Math.PI * 2); ctx.fillStyle = P.iris1; ctx.fill();
+  ctx.beginPath(); ctx.arc(ox, cy + 2, 40, 0, Math.PI * 2); ctx.fillStyle = P.iris2; ctx.fill();
+  ctx.beginPath(); ctx.arc(ox, cy + 2, 22, 0, Math.PI * 2); ctx.fillStyle = P.pupil; ctx.fill();
   ctx.beginPath(); ctx.arc(ox - 16, cy - 16, 11, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fill();
   ctx.beginPath(); ctx.arc(ox + 14, cy + 16, 5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill();
   // paupière supérieure (peau), du pli jusqu'au bord mobile
@@ -207,10 +216,10 @@ function drawEye(cx, cy, closure, gx) {
   ctx.lineTo(cx + w, cy);
   ctx.quadraticCurveTo(cx, lidCtrl, cx - w, cy);
   ctx.closePath();
-  ctx.fillStyle = '#dfa180'; ctx.fill();
+  ctx.fillStyle = P.lid; ctx.fill();
   ctx.restore();
   // contour bas
-  ctx.lineWidth = 4; ctx.strokeStyle = '#2a1a14'; ctx.lineCap = 'round';
+  ctx.lineWidth = 4; ctx.strokeStyle = P.line; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(cx - w, cy); ctx.quadraticCurveTo(cx, cy + 2 * h, cx + w, cy); ctx.stroke();
   // bord de la paupière
   ctx.lineWidth = 5;
@@ -236,7 +245,7 @@ function drawEye(cx, cy, closure, gx) {
   }
 }
 function drawEyes() {
-  ctx.fillStyle = '#f1cfb6'; ctx.fillRect(0, 0, view.width, view.height);
+  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, view.width, view.height);
   // image miroir : l'œil gauche de l'utilisateur est dessiné à gauche
   drawEye(180, 260, scoreL, gazeX);
   drawEye(460, 260, scoreR, gazeX);
