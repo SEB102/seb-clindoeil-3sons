@@ -63,7 +63,7 @@
     <button class="main" id="start" hidden>Réessayer</button>
     <div id="status"></div>
 
-    <button id="face" type="button">Visage 1</button>
+    <button id="face" type="button">Regard 1</button>
     <button id="centrer" type="button" title="Regardez l'écran droit devant vous pendant 13 secondes">◎ Centrer</button>
 
     <button id="fs" type="button">⛶ Plein écran</button>
@@ -130,7 +130,7 @@ const FACES = [
   { name:'Regard 1', mode:'eyes', bg:'#7d543b', sclera:'#f3efe6', iris1:'#7a4a22', iris2:'#4e2b12', pupil:'#050302', lid:'#5f3d2b', line:'#0a0504' },
   { name:'Regard 2', mode:'eyes', bg:'#f1cfb6', sclera:'#f6f6f2', iris1:'#3b82c4', iris2:'#2a66a3', pupil:'#05070a', lid:'#dfa180', line:'#2a1a14' }
 ];
-let faceIdx = 0, P = FACES[0];
+let faceIdx = 2, P = FACES[2];   // par défaut : Regard 1
 const slots = {
   left:  { title: 'Regard à gauche · kick',          def: 'kick',          gen: makeDefaultSampleData, buf: null, name: 'kick' },
   right: { title: 'Regard à droite · caisse claire', def: 'caisse-claire', gen: makeSnareSampleData,   buf: null, name: 'caisse-claire' },
