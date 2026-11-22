@@ -99,7 +99,7 @@ let actx = null;
 const det = new BlinkDetector({ high: 0.5, low: 0.3, refractoryMs: 150 });
 const detGL = new BlinkDetector({ high: 0.3, low: 0.18, refractoryMs: 150 });
 const detGR = new BlinkDetector({ high: 0.3, low: 0.18, refractoryMs: 150 });
-let gazeX = 0;
+let gazeX = 0, faceOk = false, eyesOk = true;
 const center = new GazeCenter(45);   // regard au repos, mesuré au démarrage (≈ 1,5 s) et à chaque clic sur « Centrer »
 let mode = 'both', volume = 0.8, showCam = false;
 let scoreL = 0, scoreR = 0;
@@ -282,8 +282,9 @@ function drawMire() {
     ctx.beginPath(); ctx.arc(x, y, R, a0, a1); ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 7; ctx.stroke();
   }
   ctx.font = 'bold 22px -apple-system, system-ui, sans-serif'; ctx.textAlign = 'center';
-  ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText('Regardez la mire', x, y + 124);
-  ctx.fillStyle = '#fff'; ctx.fillText('Regardez la mire', x, y + 124);
+  ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.8)'; const msg = !faceOk ? 'Visage non détecté' : !eyesOk ? 'Ouvrez grand les yeux' : 'Regardez la mire';
+  ctx.strokeText(msg, x, y + 124);
+  ctx.fillStyle = (faceOk && eyesOk) ? '#fff' : '#ffd24a'; ctx.fillText(msg, x, y + 124);
   ctx.restore();
 }
 
@@ -329,6 +330,7 @@ function frame() {
     try { res = landmarker.detectForVideo(video, now); }
     catch (e) { if (delegate === 'GPU') fallbackCPU(); res = null; }
     const bs = res && res.faceBlendshapes && res.faceBlendshapes[0];
+    faceOk = !!bs;
     if (bs) {
       const get = n => (bs.categories.find(c => c.categoryName === n) || {}).score || 0;
       scoreL = get('eyeBlinkLeft'); scoreR = get('eyeBlinkRight');
@@ -337,7 +339,8 @@ function frame() {
       if (ev === 'close') play('close');
       // regard : seulement quand les yeux sont ouverts
       const g = gazeScores(get);
-      const ouverts = Math.max(scoreL, scoreR) < 0.35;
+      const ouverts = Math.max(scoreL, scoreR) < det.high;   // même critère que la détection des yeux fermés
+      eyesOk = ouverts;
       if (ouverts && !center.ready) {
         if (center.add(g.left, g.right)) { status('Centré ✓'); setTimeout(() => { if ($('status').textContent === 'Centré ✓') status('Clignez des yeux'); }, 1500); }
       }
