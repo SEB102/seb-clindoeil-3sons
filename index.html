@@ -194,7 +194,7 @@ function drawEye(cx, cy, closure, gx) {
   // globe oculaire
   ctx.save(); almond(); ctx.clip();
   ctx.fillStyle = '#f6f6f2'; ctx.fillRect(cx - w, cy - 2 * h, 2 * w, 4 * h);
-  const ox = cx - gx * 48;                                // l'iris suit le regard
+  const ox = cx + gx * 48;                                // l'iris suit le regard
   ctx.beginPath(); ctx.arc(ox, cy + 2, 52, 0, Math.PI * 2); ctx.fillStyle = '#3b82c4'; ctx.fill();
   ctx.beginPath(); ctx.arc(ox, cy + 2, 40, 0, Math.PI * 2); ctx.fillStyle = '#2a66a3'; ctx.fill();
   ctx.beginPath(); ctx.arc(ox, cy + 2, 22, 0, Math.PI * 2); ctx.fillStyle = '#05070a'; ctx.fill();
