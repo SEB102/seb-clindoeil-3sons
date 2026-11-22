@@ -32,6 +32,10 @@
   .slot .sname { grid-column:1/-1; color:var(--mut); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .chk { display:flex; align-items:center; gap:8px; cursor:pointer; }
   .chk input { accent-color:var(--acc); width:16px; height:16px; }
+  details.spoiler { background:#20232b; border-radius:8px; padding:8px 10px; }
+  details.spoiler > summary { cursor:pointer; font-size:14px; }
+  details.spoiler[open] > summary { margin-bottom:10px; }
+  details.spoiler > :not(summary) { margin-top:10px; }
   footer { position:fixed; left:0; right:0; bottom:0; z-index:5; background:var(--bg); border-top:1px solid #2a2d38; padding:8px 12px; text-align:center; color:var(--mut); font-size:12px; letter-spacing:.08em; line-height:1.7; }
   footer a { color:#a9b6ff; text-decoration:underline; text-underline-offset:3px; }
   footer a:hover { color:#fff; }
@@ -49,6 +53,7 @@
     <button class="main" id="start" hidden>Réessayer</button>
     <div id="status"></div>
 
+    <details class="spoiler"><summary>Image et yeux</summary>
     <label class="chk"><input type="checkbox" id="showcam"> Image caméra</label>
 
     <div class="row"><span>Œil gauche</span><div class="bar"><i id="barL"></i></div></div>
@@ -63,6 +68,7 @@
       <option value="left">Œil gauche seul</option>
       <option value="right">Œil droit seul</option>
     </select>
+    </details>
 
     <div class="row"><span>Seuil yeux fermés <b id="thV">0.50</b></span><input type="range" id="th" min="0.2" max="0.9" step="0.01" value="0.5"></div>
     <div class="row"><span>Seuil regard <b id="thgV">0.30</b></span><input type="range" id="thg" min="0.1" max="0.9" step="0.01" value="0.3"></div>
@@ -188,7 +194,7 @@ function drawEye(cx, cy, closure, gx) {
   // globe oculaire
   ctx.save(); almond(); ctx.clip();
   ctx.fillStyle = '#f6f6f2'; ctx.fillRect(cx - w, cy - 2 * h, 2 * w, 4 * h);
-  const ox = cx + gx * 48;                                // l'iris suit le regard
+  const ox = cx - gx * 48;                                // l'iris suit le regard
   ctx.beginPath(); ctx.arc(ox, cy + 2, 52, 0, Math.PI * 2); ctx.fillStyle = '#3b82c4'; ctx.fill();
   ctx.beginPath(); ctx.arc(ox, cy + 2, 40, 0, Math.PI * 2); ctx.fillStyle = '#2a66a3'; ctx.fill();
   ctx.beginPath(); ctx.arc(ox, cy + 2, 22, 0, Math.PI * 2); ctx.fillStyle = '#05070a'; ctx.fill();
