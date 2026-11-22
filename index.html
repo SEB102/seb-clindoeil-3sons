@@ -243,7 +243,16 @@ function drawEyes() {
 }
 
 // ── Détection ────────────────────────────────────────────────────────────
-let landmarker = null, lastT = -1, running = false;
+let landmarker = null, lastT = -1, running = false, fileset = null, delegate = 'GPU', switching = false;
+const makeLandmarker = del => FaceLandmarker.createFromOptions(fileset, {
+  baseOptions: { modelAssetPath: './face_landmarker.task', delegate: del },
+  outputFaceBlendshapes: true, runningMode: 'VIDEO', numFaces: 1
+});
+// Si le GPU échoue en cours de route (certains mobiles), repli automatique sur le processeur
+async function fallbackCPU() {
+  switching = true;
+  try { landmarker = await makeLandmarker('CPU'); delegate = 'CPU'; } finally { switching = false; }
+}
 
 async function start() {
   if (running) return;
@@ -252,12 +261,11 @@ async function start() {
   try {
     status('Chargement du modèle…');
     const fs = await FilesetResolver.forVisionTasks('.');
-    landmarker = await FaceLandmarker.createFromOptions(fs, {
-      baseOptions: { modelAssetPath: './face_landmarker.task', delegate: 'CPU' },
-      outputFaceBlendshapes: true, runningMode: 'VIDEO', numFaces: 1
-    });
+    fileset = fs;
+    try { landmarker = await makeLandmarker('GPU'); delegate = 'GPU'; }
+    catch (e) { landmarker = await makeLandmarker('CPU'); delegate = 'CPU'; }
     status('Caméra…');
-    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
     await video.play();
     running = true; status(actx.state === 'running' ? 'Clignez des yeux' : 'Cliquez dans la page pour activer le son');
   } catch (err) {
@@ -269,11 +277,13 @@ $('start').onclick = start;
 start();
 
 function frame() {
-  if (running && video.readyState >= 2 && video.currentTime !== lastT) {
+  if (running && !switching && video.readyState >= 2 && video.currentTime !== lastT) {
     lastT = video.currentTime;
     const now = performance.now();
-    const res = landmarker.detectForVideo(video, now);
-    const bs = res.faceBlendshapes && res.faceBlendshapes[0];
+    let res;
+    try { res = landmarker.detectForVideo(video, now); }
+    catch (e) { if (delegate === 'GPU') fallbackCPU(); res = null; }
+    const bs = res && res.faceBlendshapes && res.faceBlendshapes[0];
     if (bs) {
       const get = n => (bs.categories.find(c => c.categoryName === n) || {}).score || 0;
       scoreL = get('eyeBlinkLeft'); scoreR = get('eyeBlinkRight');
