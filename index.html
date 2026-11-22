@@ -54,7 +54,7 @@
     <div id="status"></div>
 
     <button id="face" type="button">Visage 1</button>
-    <button id="centrer" type="button" title="Regardez l'écran droit devant vous">◎ Centrer</button>
+    <button id="centrer" type="button" title="Regardez l'écran droit devant vous pendant 2 secondes">◎ Centrer</button>
 
     <details class="spoiler"><summary>Image et yeux</summary>
     <label class="chk"><input type="checkbox" id="showcam"> Image caméra</label>
@@ -100,7 +100,7 @@ const det = new BlinkDetector({ high: 0.5, low: 0.3, refractoryMs: 150 });
 const detGL = new BlinkDetector({ high: 0.3, low: 0.18, refractoryMs: 150 });
 const detGR = new BlinkDetector({ high: 0.3, low: 0.18, refractoryMs: 150 });
 let gazeX = 0;
-const center = new GazeCenter(30);   // regard au repos, mesuré au démarrage (≈ 1 s) et à chaque clic sur « Centrer »
+const center = new GazeCenter(45);   // regard au repos, mesuré au démarrage (≈ 1,5 s) et à chaque clic sur « Centrer »
 let mode = 'both', volume = 0.8, showCam = false;
 let scoreL = 0, scoreR = 0;
 
@@ -271,13 +271,19 @@ function drawMire() {
   ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fillStyle = '#ff2a2a'; ctx.fill();
   // progression du centrage
   const p = Math.min(1, center.n / center.frames);
+  const R = 66;
+  ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2);                    // rail de l'arc, toujours visible
+  ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 12; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 6; ctx.stroke();
   if (p > 0) {
-    ctx.beginPath(); ctx.arc(x, y, 60, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
-    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.stroke();
+    const a0 = -Math.PI / 2, a1 = a0 + p * Math.PI * 2;
+    ctx.beginPath(); ctx.arc(x, y, R, a0, a1); ctx.strokeStyle = '#000'; ctx.lineWidth = 12; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, R, a0, a1); ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 7; ctx.stroke();
   }
   ctx.font = 'bold 22px -apple-system, system-ui, sans-serif'; ctx.textAlign = 'center';
-  ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText('Regardez la mire', x, y + 112);
-  ctx.fillStyle = '#fff'; ctx.fillText('Regardez la mire', x, y + 112);
+  ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText('Regardez la mire', x, y + 124);
+  ctx.fillStyle = '#fff'; ctx.fillText('Regardez la mire', x, y + 124);
   ctx.restore();
 }
 
