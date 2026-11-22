@@ -214,7 +214,13 @@
     return { left: f(l, this.bl), right: f(r, this.br) };
   };
 
-  const api = { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter };
+  // Yeux « ouverts » pendant le centrage : regarder vers le bas fait descendre les paupières et
+  // monter le score de clignement ; on retire cette part (eyeLookDown) avant de comparer au seuil.
+  function eyesOpenIgnoringLookDown(blinkL, blinkR, downL, downR, thr) {
+    return Math.max(blinkL - 0.7 * downL, blinkR - 0.7 * downR) < thr;
+  }
+
+  const api = { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter, eyesOpenIgnoringLookDown };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Clindoeil = api;
 })(typeof window !== 'undefined' ? window : globalThis);

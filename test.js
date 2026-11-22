@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter } = require('./clindoeil-core.js');
+const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter, eyesOpenIgnoringLookDown } = require('./clindoeil-core.js');
 
 // Un clignement = un seul déclenchement
 let d = new BlinkDetector({ high: 0.5, low: 0.3, refractoryMs: 150 });
@@ -54,4 +54,8 @@ const mid = gc.apply(0.625, 0.525); assert.ok(Math.abs(mid.left - 0.5) < 1e-9 &&
 assert.ok(gc.apply(0.1, 0).left === 0, 'jamais négatif');
 gc.reset(); assert.ok(!gc.ready && gc.n === 0);
 const gp = new GazeCenter(3); gp.add(0.9, 0.9); gp.add(0.9, 0.9); gp.add(0.9, 0.9); assert.ok(gp.bl <= 0.8, 'repos plafonné');
+// Regard vers le bas : paupières à 0.6 mais regard bas à 0.8 → compte comme ouvert ; vrai clignement → fermé
+assert.ok(eyesOpenIgnoringLookDown(0.6, 0.6, 0.8, 0.8, 0.5));
+assert.ok(!eyesOpenIgnoringLookDown(0.6, 0.6, 0.0, 0.0, 0.5));
+assert.ok(!eyesOpenIgnoringLookDown(0.95, 0.95, 0.3, 0.3, 0.5), 'yeux vraiment fermés');
 console.log('OK');

@@ -74,7 +74,7 @@
     </details>
 
     <div class="row"><span>Seuil yeux fermés <b id="thV">0.50</b></span><input type="range" id="th" min="0.2" max="0.9" step="0.01" value="0.5"></div>
-    <div class="row"><span>Seuil regard <b id="thgV">0.30</b></span><input type="range" id="thg" min="0.1" max="0.9" step="0.01" value="0.3"></div>
+    <div class="row"><span>Seuil regard <b id="thgV">0.20</b></span><input type="range" id="thg" min="0.1" max="0.9" step="0.01" value="0.2"></div>
     <div class="row"><span>Volume <b id="volV">0.80</b></span><input type="range" id="vol" min="0" max="1" step="0.01" value="0.8"></div>
 
     <div id="slots"></div>
@@ -89,7 +89,7 @@
 <script src="clindoeil-core.js"></script>
 <script type="module">
 import { FaceLandmarker, FilesetResolver } from "./vision_bundle.mjs";
-const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter } = Clindoeil;
+const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter, eyesOpenIgnoringLookDown } = Clindoeil;
 
 const $ = id => document.getElementById(id);
 const video = $('video'), view = $('view'), ctx = view.getContext('2d');
@@ -97,8 +97,8 @@ const status = t => $('status').textContent = t;
 
 let actx = null;
 const det = new BlinkDetector({ high: 0.5, low: 0.3, refractoryMs: 150 });
-const detGL = new BlinkDetector({ high: 0.3, low: 0.18, refractoryMs: 150 });
-const detGR = new BlinkDetector({ high: 0.3, low: 0.18, refractoryMs: 150 });
+const detGL = new BlinkDetector({ high: 0.2, low: 0.12, refractoryMs: 150 });
+const detGR = new BlinkDetector({ high: 0.2, low: 0.12, refractoryMs: 150 });
 let gazeX = 0, faceOk = false, eyesOk = true;
 const center = new GazeCenter(45);   // regard au repos, mesuré au démarrage (≈ 1,5 s) et à chaque clic sur « Centrer »
 let mode = 'both', volume = 0.8, showCam = false;
@@ -340,8 +340,10 @@ function frame() {
       // regard : seulement quand les yeux sont ouverts
       const g = gazeScores(get);
       const ouverts = Math.max(scoreL, scoreR) < det.high;   // même critère que la détection des yeux fermés
-      eyesOk = ouverts;
-      if (ouverts && !center.ready) {
+      // pendant le centrage : le regard vers le bas (paupières qui descendent) est ignoré
+      const ouvertsCentrage = eyesOpenIgnoringLookDown(scoreL, scoreR, get('eyeLookDownLeft'), get('eyeLookDownRight'), det.high);
+      eyesOk = center.ready ? ouverts : ouvertsCentrage;
+      if (ouvertsCentrage && !center.ready) {
         if (center.add(g.left, g.right)) { status('Centré ✓'); setTimeout(() => { if ($('status').textContent === 'Centré ✓') status('Clignez des yeux'); }, 1500); }
       }
       const c = center.ready ? center.apply(g.left, g.right) : { left: 0, right: 0 };
