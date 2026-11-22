@@ -15,8 +15,6 @@
   @media (max-width:1000px) { .wrap { grid-template-columns:minmax(0,1fr); justify-items:center; } .wrap .panel, .wrap .vid { grid-column:1; justify-self:center; } .wrap .vid { grid-row:1; } .wrap .panel { grid-row:2; } }
   .vid { position:relative; width:640px; max-width:100%; background:#000; border-radius:10px; overflow:hidden; }
   canvas { display:block; width:100%; height:auto; }
-  .flash { position:absolute; inset:0; background:var(--acc); opacity:0; pointer-events:none; transition:opacity .25s; }
-  .flash.on { opacity:.3; transition:none; }
   .panel { width:300px; max-width:100%; background:var(--card); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:12px; }
   button, select, label.btn { background:#262932; color:var(--fg); border:1px solid #363a46; border-radius:8px; padding:8px 10px; font:inherit; cursor:pointer; text-align:center; }
   button.main { background:var(--acc); color:#001317; border-color:var(--acc); font-weight:600; padding:9px 12px; }
@@ -58,7 +56,6 @@
   <div class="vid">
     <video id="video" playsinline muted style="display:none"></video>
     <canvas id="view" width="640" height="480"></canvas>
-    <div class="flash" id="flash"></div>
     <button id="exit-fs" type="button" title="Quitter le plein écran" aria-label="Quitter le plein écran"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6"/></svg></button>
     <button id="centrer-fs" type="button" title="Recentrer le regard">◎ Centrer</button>
   </div>
@@ -163,8 +160,6 @@ function play(key) {
   const src = a.createBufferSource(); src.buffer = s.buf;
   const g = a.createGain(); g.gain.value = volume;
   src.connect(g).connect(a.destination); src.start();
-  const f = $('flash'); f.classList.add('on');
-  requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on')));
 }
 function download(key) {
   const s = slots[key]; if (!s.buf) setDefault(key);
