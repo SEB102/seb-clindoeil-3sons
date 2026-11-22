@@ -123,10 +123,12 @@ let mode = 'both', volume = 0.8, showCam = false;
 let scoreL = 0, scoreR = 0;
 
 // Trois sons : kick (regard à gauche), caisse claire (regard à droite), cymbale (yeux fermés)
-// Deux visages : 1 = noir, yeux marrons (par défaut) ; 2 = blanc, yeux bleus
+// Quatre images : Visage 1 (noir) / Visage 2 (blanc) = visage entier ; Regard 1 / Regard 2 = les yeux seuls
 const FACES = [
-  { bg: '#7d543b', sclera: '#f3efe6', iris1: '#7a4a22', iris2: '#4e2b12', pupil: '#050302', lid: '#5f3d2b', line: '#0a0504' },
-  { bg: '#f1cfb6', sclera: '#f6f6f2', iris1: '#3b82c4', iris2: '#2a66a3', pupil: '#05070a', lid: '#dfa180', line: '#2a1a14' }
+  { name:'Visage 1', mode:'face', bg:'#dde5ee', skin:'#7a4e36', shade:'#62402c', sclera:'#f3efe6', iris1:'#7a4a22', iris2:'#4e2b12', pupil:'#050302', lid:'#6d4630', line:'#0a0504', hair:'#15100d', brow:'#120c0a', lip:'#5e2f2b', lip2:'#7b413a', shirt:'#2f4a6b', afro:true },
+  { name:'Visage 2', mode:'face', bg:'#dde5ee', skin:'#f1cfb6', shade:'#e2b99d', sclera:'#f6f6f2', iris1:'#3b82c4', iris2:'#2a66a3', pupil:'#05070a', lid:'#e6bda1', line:'#2a1a14', hair:'#5a3d29', brow:'#4a3222', lip:'#c4736c', lip2:'#d98a82', shirt:'#6b3b3b', afro:false },
+  { name:'Regard 1', mode:'eyes', bg:'#7d543b', sclera:'#f3efe6', iris1:'#7a4a22', iris2:'#4e2b12', pupil:'#050302', lid:'#5f3d2b', line:'#0a0504' },
+  { name:'Regard 2', mode:'eyes', bg:'#f1cfb6', sclera:'#f6f6f2', iris1:'#3b82c4', iris2:'#2a66a3', pupil:'#05070a', lid:'#dfa180', line:'#2a1a14' }
 ];
 let faceIdx = 0, P = FACES[0];
 const slots = {
@@ -225,12 +227,12 @@ $('exit-fs').onclick = exitFullscreen;
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && vidBox.classList.contains('pseudo-fs')) exitFullscreen(); });
 for (const ev of ['click', 'dblclick']) $('centrer-fs').addEventListener(ev, e => e.stopPropagation());
 $('centrer-fs').onclick = recentrer;
-$('face').onclick = () => { faceIdx = 1 - faceIdx; P = FACES[faceIdx]; $('face').textContent = 'Visage ' + (faceIdx + 1); };
+$('face').onclick = () => { faceIdx = (faceIdx + 1) % FACES.length; P = FACES[faceIdx]; $('face').textContent = P.name; };
 $('comp').onchange = e => { const p = Math.max(0, Math.min(300, parseFloat(e.target.value))); headComp = (isNaN(p) ? 100 : p) / 100; e.target.value = Math.round(headComp * 100); };
 $('showcam').onchange = e => { showCam = e.target.checked; };
 
 // ── Yeux dessinés (image caméra masquée) ─────────────────────────────────
-function drawEye(cx, cy, closure, gx) {
+function drawEye(cx, cy, closure, gx, big) {
   const w = 125, h = 88;
   const ctrlOpen = cy - 2 * h;
   const lidCtrl = ctrlOpen + closure * 3.8 * h;       // bord de la paupière
@@ -267,13 +269,13 @@ function drawEye(cx, cy, closure, gx) {
   ctx.lineWidth = 5;
   ctx.beginPath(); ctx.moveTo(cx - w, cy); ctx.quadraticCurveTo(cx, lidCtrl, cx + w, cy); ctx.stroke();
   // longs cils le long du bord, qui basculent vers le bas à la fermeture
-  const N = 17;
+  const N = big ? 17 : 11;
   for (let i = 0; i < N; i++) {
     const t = 0.06 + 0.88 * i / (N - 1);
     const px = (1 - t) * (1 - t) * (cx - w) + 2 * (1 - t) * t * cx + t * t * (cx + w);
     const py = (1 - t) * (1 - t) * cy + 2 * (1 - t) * t * lidCtrl + t * t * cy;
     const side = (px - cx) / w;                       // -1 gauche … +1 droite
-    const len = 52 + 24 * Math.sin(Math.PI * t) + (i % 2 ? 0 : 8);
+    const len = big ? 52 + 24 * Math.sin(Math.PI * t) + (i % 2 ? 0 : 8) : 34 + 14 * Math.sin(Math.PI * t) + (i % 2 ? 0 : 6);
     const up = { x: side * 0.75, y: -1 }, down = { x: side * 0.35, y: 1 };
     let dx = up.x * (1 - closure) + down.x * closure;
     let dy = up.y * (1 - closure) + down.y * closure;
@@ -286,11 +288,51 @@ function drawEye(cx, cy, closure, gx) {
     ctx.stroke();
   }
 }
-function drawEyes() {
+function headPath() { ctx.beginPath(); ctx.moveTo(320,40); ctx.bezierCurveTo(402,40,456,104,456,188); ctx.bezierCurveTo(456,282,404,394,320,396); ctx.bezierCurveTo(236,394,184,282,184,188); ctx.bezierCurveTo(184,104,238,40,320,40); ctx.closePath(); }
+function drawFullFace() {
+  const afro = P.afro;
   ctx.fillStyle = P.bg; ctx.fillRect(0, 0, view.width, view.height);
-  // image miroir : l'œil gauche de l'utilisateur est dessiné à gauche
-  drawEye(180, 260, scoreL, gazeX);
-  drawEye(460, 260, scoreR, gazeX);
+  // épaules, cou, col
+  ctx.fillStyle = P.shirt; ctx.beginPath(); ctx.moveTo(60,480); ctx.bezierCurveTo(70,420,200,392,320,392); ctx.bezierCurveTo(440,392,570,420,580,480); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = P.shade; ctx.beginPath(); ctx.moveTo(272,330); ctx.lineTo(368,330); ctx.lineTo(380,410); ctx.bezierCurveTo(350,430,290,430,260,410); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(262,408); ctx.quadraticCurveTo(320,445,378,408); ctx.stroke();
+  // cheveux derrière la tête
+  ctx.fillStyle = P.hair;
+  if (afro) { ctx.beginPath(); ctx.ellipse(320,136,160,108,0,0,Math.PI*2); ctx.fill(); for (let i = 0; i < 14; i++) { const t = Math.PI*(1.05+0.9*i/13); ctx.beginPath(); ctx.arc(320+Math.cos(t)*156,136+Math.sin(t)*104,20,0,Math.PI*2); ctx.fill(); } }
+  else { ctx.beginPath(); ctx.ellipse(320,120,146,100,0,0,Math.PI*2); ctx.fill(); }
+  // oreilles et tête
+  ctx.fillStyle = P.skin; for (const x of [184,456]) { ctx.beginPath(); ctx.ellipse(x,214,17,30,0,0,Math.PI*2); ctx.fill(); }
+  ctx.fillStyle = P.shade; for (const x of [186,454]) { ctx.beginPath(); ctx.ellipse(x,216,7,16,0,0,Math.PI*2); ctx.fill(); }
+  ctx.fillStyle = P.skin; headPath(); ctx.fill();
+  // nez
+  ctx.strokeStyle = P.shade; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(312,222); ctx.quadraticCurveTo(306,262,296,276); ctx.quadraticCurveTo(320,288,344,276); ctx.stroke();
+  ctx.fillStyle = P.shade; for (const x of [305,335]) { ctx.beginPath(); ctx.ellipse(x,278,6,4,0,0,Math.PI*2); ctx.fill(); }
+  // bouche (sourire) ; lèvres plus épaisses pour le visage 1
+  const L = afro ? { x0:264, x1:376, up:300, low:384, mid:326 } : { x0:270, x1:370, up:312, low:368, mid:325 };
+  const lowC = L.mid + (afro ? 20 : 17), upD = afro ? 8 : 6;
+  ctx.fillStyle = P.lip2; ctx.beginPath(); ctx.moveTo(L.x0,325); ctx.quadraticCurveTo(320,L.low,L.x1,325); ctx.quadraticCurveTo(320,lowC,L.x0,325); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = P.lip; ctx.beginPath(); ctx.moveTo(L.x0,325); ctx.quadraticCurveTo(294,L.up,320,L.up+upD); ctx.quadraticCurveTo(346,L.up,L.x1,325); ctx.quadraticCurveTo(320,lowC,L.x0,325); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(L.x0,325); ctx.quadraticCurveTo(320,lowC,L.x1,325); ctx.stroke();
+  // sourcils
+  ctx.strokeStyle = P.brow; ctx.lineCap = 'round'; ctx.lineWidth = afro ? 9 : 7;
+  ctx.beginPath(); ctx.moveTo(212,166); ctx.quadraticCurveTo(252,148,292,164); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(348,164); ctx.quadraticCurveTo(388,148,428,166); ctx.stroke();
+  // yeux animés (image miroir : l'œil gauche de l'utilisateur est dessiné à gauche)
+  for (const [x, cl] of [[252, scoreL], [388, scoreR]]) { ctx.save(); ctx.translate(x, 206); ctx.scale(0.3, 0.3); drawEye(0, 0, cl, gazeX, false); ctx.restore(); }
+  // cheveux devant : recouvrent le haut de la tête
+  ctx.fillStyle = P.hair; ctx.beginPath(); ctx.moveTo(183,196);
+  ctx.bezierCurveTo(180,100,238,36,320,36); ctx.bezierCurveTo(402,36,460,100,457,196);
+  if (afro) { ctx.bezierCurveTo(448,140,400,104,320,104); ctx.bezierCurveTo(240,104,192,140,183,196); }
+  else { ctx.bezierCurveTo(452,150,420,118,372,108); ctx.bezierCurveTo(330,136,262,132,214,112); ctx.bezierCurveTo(196,132,186,164,183,196); }
+  ctx.closePath(); ctx.fill();
+}
+function drawEyes() {
+  if (P.mode === 'eyes') {                       // Regard 1 / 2 : les yeux seuls, en grand
+    ctx.fillStyle = P.bg; ctx.fillRect(0, 0, view.width, view.height);
+    // image miroir : l'œil gauche de l'utilisateur est dessiné à gauche
+    drawEye(180, 260, scoreL, gazeX, true);
+    drawEye(460, 260, scoreR, gazeX, true);
+  } else drawFullFace();                          // Visage 1 / 2 : visage entier
 }
 
 // ── Mire affichée pendant le centrage : regardez le point rouge ──────────
