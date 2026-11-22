@@ -196,7 +196,25 @@
     return { left, right };
   }
 
-  const api = { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores };
+  // Centrage du regard : mesure le regard au repos (moyenne de `frames` images, yeux ouverts)
+  // puis le retire des scores (rééchelonné pour garder toute la plage 0..1).
+  function GazeCenter(frames) { this.frames = frames || 30; this.reset(); }
+  GazeCenter.prototype.reset = function () { this.n = 0; this.sl = 0; this.sr = 0; this.bl = 0; this.br = 0; this.ready = false; };
+  GazeCenter.prototype.add = function (l, r) {
+    if (this.ready) return false;
+    this.sl += l; this.sr += r; this.n++;
+    if (this.n >= this.frames) {
+      this.bl = Math.min(0.8, this.sl / this.n); this.br = Math.min(0.8, this.sr / this.n);
+      this.ready = true; return true;
+    }
+    return false;
+  };
+  GazeCenter.prototype.apply = function (l, r) {
+    const f = (v, b) => Math.max(0, Math.min(1, (v - b) / (1 - b)));
+    return { left: f(l, this.bl), right: f(r, this.br) };
+  };
+
+  const api = { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Clindoeil = api;
 })(typeof window !== 'undefined' ? window : globalThis);

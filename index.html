@@ -54,6 +54,7 @@
     <div id="status"></div>
 
     <button id="face" type="button">Visage 1</button>
+    <button id="centrer" type="button" title="Regardez l'écran droit devant vous">◎ Centrer</button>
 
     <details class="spoiler"><summary>Image et yeux</summary>
     <label class="chk"><input type="checkbox" id="showcam"> Image caméra</label>
@@ -88,7 +89,7 @@
 <script src="clindoeil-core.js"></script>
 <script type="module">
 import { FaceLandmarker, FilesetResolver } from "./vision_bundle.mjs";
-const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores } = Clindoeil;
+const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter } = Clindoeil;
 
 const $ = id => document.getElementById(id);
 const video = $('video'), view = $('view'), ctx = view.getContext('2d');
@@ -99,6 +100,7 @@ const det = new BlinkDetector({ high: 0.5, low: 0.3, refractoryMs: 150 });
 const detGL = new BlinkDetector({ high: 0.3, low: 0.18, refractoryMs: 150 });
 const detGR = new BlinkDetector({ high: 0.3, low: 0.18, refractoryMs: 150 });
 let gazeX = 0;
+const center = new GazeCenter(30);   // regard au repos, mesuré au démarrage (≈ 1 s) et à chaque clic sur « Centrer »
 let mode = 'both', volume = 0.8, showCam = false;
 let scoreL = 0, scoreR = 0;
 
@@ -123,7 +125,7 @@ function ensureAudio() {
 for (const ev of ['pointerdown', 'keydown', 'touchstart']) {
   window.addEventListener(ev, () => {
     ensureAudio();
-    if (running && $('status').textContent.startsWith('Cliquez')) status('Clignez des yeux');
+    if (running && $('status').textContent.startsWith('Cliquez')) status(center.ready ? 'Clignez des yeux' : 'Centrage… regardez l\'écran');
   }, { passive: true });
 }
 function setDefault(key) {
@@ -184,6 +186,7 @@ $('mode').onchange = e => { mode = e.target.value; det.reset(); };
 $('th').oninput = e => { const v = +e.target.value; det.high = v; det.low = v * 0.6; $('thV').textContent = v.toFixed(2); };
 $('thg').oninput = e => { const v = +e.target.value; for (const d of [detGL, detGR]) { d.high = v; d.low = v * 0.6; } $('thgV').textContent = v.toFixed(2); };
 $('vol').oninput = e => { volume = +e.target.value; $('volV').textContent = volume.toFixed(2); };
+$('centrer').onclick = () => { center.reset(); detGL.reset(); detGR.reset(); status('Centrage… regardez l\'écran'); };
 $('face').onclick = () => { faceIdx = 1 - faceIdx; P = FACES[faceIdx]; $('face').textContent = 'Visage ' + (faceIdx + 1); };
 $('showcam').onchange = e => { showCam = e.target.checked; };
 
@@ -276,7 +279,7 @@ async function start() {
     status('Caméra…');
     video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
     await video.play();
-    running = true; status(actx.state === 'running' ? 'Clignez des yeux' : 'Cliquez dans la page pour activer le son');
+    running = true; status(actx.state === 'running' ? 'Centrage… regardez l\'écran' : 'Cliquez dans la page pour activer le son');
   } catch (err) {
     status('Erreur : ' + (err && err.message || err));
     $('start').hidden = false;
@@ -302,9 +305,13 @@ function frame() {
       // regard : seulement quand les yeux sont ouverts
       const g = gazeScores(get);
       const ouverts = Math.max(scoreL, scoreR) < 0.35;
-      const gl = ouverts ? g.left : 0, gr = ouverts ? g.right : 0;
+      if (ouverts && !center.ready) {
+        if (center.add(g.left, g.right)) { status('Centré ✓'); setTimeout(() => { if ($('status').textContent === 'Centré ✓') status('Clignez des yeux'); }, 1500); }
+      }
+      const c = center.ready ? center.apply(g.left, g.right) : { left: 0, right: 0 };
+      const gl = ouverts ? c.left : 0, gr = ouverts ? c.right : 0;
       $('barGL').style.width = (gl * 100) + '%'; $('barGR').style.width = (gr * 100) + '%';
-      gazeX = ouverts ? Math.max(-1, Math.min(1, (g.right - g.left) * 1.6)) : gazeX;
+      gazeX = ouverts ? Math.max(-1, Math.min(1, (c.right - c.left) * 1.6)) : gazeX;
       if (detGL.update(gl, now) === 'close') play('left');
       if (detGR.update(gr, now) === 'close') play('right');
     }

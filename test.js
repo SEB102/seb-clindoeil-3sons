@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores } = require('./clindoeil-core.js');
+const { BlinkDetector, blinkScore, encodeWav, makeDefaultSampleData, makeTomSampleData, makeSnareSampleData, makeCymbalSampleData, gazeScores, GazeCenter } = require('./clindoeil-core.js');
 
 // Un clignement = un seul déclenchement
 let d = new BlinkDetector({ high: 0.5, low: 0.3, refractoryMs: 150 });
@@ -44,4 +44,14 @@ for (const [nom, f, dur] of [['snare', makeSnareSampleData, 1.0], ['cymbale', ma
 const bsv = { eyeLookOutLeft: 0.8, eyeLookInRight: 0.6, eyeLookInLeft: 0.0, eyeLookOutRight: 0.1 };
 const gs = gazeScores(n => bsv[n] || 0);
 assert.ok(gs.left > 0.6 && gs.right < 0.1);
+// Centrage : un regard au repos décalé (0.25 à gauche, 0.05 à droite) est ramené à 0
+const gc = new GazeCenter(5);
+let fini = false; for (let i = 0; i < 5; i++) fini = gc.add(0.25, 0.05);
+assert.ok(fini && gc.ready);
+const rep = gc.apply(0.25, 0.05); assert.ok(rep.left < 1e-9 && rep.right < 1e-9);
+const haut = gc.apply(1, 1); assert.ok(Math.abs(haut.left - 1) < 1e-9 && Math.abs(haut.right - 1) < 1e-9);
+const mid = gc.apply(0.625, 0.525); assert.ok(Math.abs(mid.left - 0.5) < 1e-9 && Math.abs(mid.right - 0.5) < 1e-9);
+assert.ok(gc.apply(0.1, 0).left === 0, 'jamais négatif');
+gc.reset(); assert.ok(!gc.ready && gc.n === 0);
+const gp = new GazeCenter(3); gp.add(0.9, 0.9); gp.add(0.9, 0.9); gp.add(0.9, 0.9); assert.ok(gp.bl <= 0.8, 'repos plafonné');
 console.log('OK');
