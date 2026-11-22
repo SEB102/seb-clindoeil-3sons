@@ -198,13 +198,15 @@
 
   // Centrage du regard : mesure le regard au repos (moyenne de `frames` images, yeux ouverts)
   // puis le retire des scores (rééchelonné pour garder toute la plage 0..1).
-  function GazeCenter(frames) { this.frames = frames || 30; this.reset(); }
-  GazeCenter.prototype.reset = function () { this.n = 0; this.sl = 0; this.sr = 0; this.bl = 0; this.br = 0; this.ready = false; };
+  function GazeCenter(frames, settle) { this.frames = frames || 30; this.settle = settle || 0; this.reset(); }
+  GazeCenter.prototype.reset = function () { this.n = 0; this.m = 0; this.sl = 0; this.sr = 0; this.bl = 0; this.br = 0; this.ready = false; };
   GazeCenter.prototype.add = function (l, r) {
     if (this.ready) return false;
-    this.sl += l; this.sr += r; this.n++;
+    this.n++;
+    if (this.n > this.settle) { this.sl += l; this.sr += r; this.m++; }   // les `settle` premières images ne sont pas mesurées
     if (this.n >= this.frames) {
-      this.bl = Math.min(0.8, this.sl / this.n); this.br = Math.min(0.8, this.sr / this.n);
+      const m = this.m || 1;
+      this.bl = Math.min(0.8, this.sl / m); this.br = Math.min(0.8, this.sr / m);
       this.ready = true; return true;
     }
     return false;

@@ -67,7 +67,7 @@
     <div id="status"></div>
 
     <button id="face" type="button">Visage 1</button>
-    <button id="centrer" type="button" title="Regardez l'écran droit devant vous pendant 2 secondes">◎ Centrer</button>
+    <button id="centrer" type="button" title="Regardez l'écran droit devant vous pendant 13 secondes">◎ Centrer</button>
 
     <button id="fs" type="button">⛶ Plein écran</button>
 
@@ -121,7 +121,7 @@ let gazeX = 0, faceOk = false, eyesOk = true;
 const DEG_TO_BS = 0.029;      // ≈ 1° de rotation ≈ 0,029 en unité de blendshape (estimation : ~34° par unité)
 let headComp = 1, lastYaw = 0, yawInit = false, centerYaw = 0;
 const yawAcc = { s: 0, n: 0 };
-const center = new GazeCenter(45);   // regard au repos, mesuré au démarrage (≈ 1,5 s) et à chaque clic sur « Centrer »
+const center = new GazeCenter(390, 90);   // ≈ 13 s à 30 images/s : 3 s pour poser le regard (non mesurées) puis 10 s de mesure du regard au repos
 let mode = 'both', volume = 0.8, showCam = false;
 let scoreL = 0, scoreR = 0;
 
@@ -392,7 +392,7 @@ function frame() {
       const ouvertsCentrage = eyesOpenIgnoringLookDown(scoreL, scoreR, get('eyeLookDownLeft'), get('eyeLookDownRight'), det.high);
       eyesOk = center.ready ? ouverts : ouvertsCentrage;
       if (ouvertsCentrage && !center.ready) {
-        if (yaw !== null) { yawAcc.s += yaw; yawAcc.n++; }
+        if (yaw !== null && center.n >= center.settle) { yawAcc.s += yaw; yawAcc.n++; }
         if (center.add(g.left, g.right)) { centerYaw = yawAcc.n ? yawAcc.s / yawAcc.n : lastYaw; status('Centré ✓'); setTimeout(() => { if ($('status').textContent === 'Centré ✓') status('Clignez des yeux'); }, 1500); }
       }
       // regard corrigé de la rotation de la tête (appliqué après le centrage)

@@ -62,4 +62,8 @@ assert.ok(!eyesOpenIgnoringLookDown(0.95, 0.95, 0.3, 0.3, 0.5), 'yeux vraiment f
 const ry = t => { const c = Math.cos(t), s = Math.sin(t); const M = new Array(16).fill(0); M[0] = c; M[2] = -s; M[5] = 1; M[8] = s; M[10] = c; M[15] = 1; return M; };
 assert.ok(Math.abs(headYawDeg(ry(0.3)) - 17.1887) < 0.01);
 assert.ok(Math.abs(headYawDeg(ry(-0.3)) + 17.1887) < 0.01);
+// Centrage avec phase d'installation : les 2 premières images (valeur 0.9) sont ignorées, la moyenne vaut 0.2
+const gs2 = new GazeCenter(6, 2); const seq = [0.9, 0.9, 0.2, 0.2, 0.2, 0.2]; let ok2 = false;
+for (const v of seq) ok2 = gs2.add(v, v);
+assert.ok(ok2 && gs2.ready && Math.abs(gs2.bl - 0.2) < 1e-9 && Math.abs(gs2.br - 0.2) < 1e-9, 'installation ignorée');
 console.log('OK');
