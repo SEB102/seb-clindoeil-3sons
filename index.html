@@ -235,10 +235,12 @@ $('comp').onchange = e => { const p = Math.max(0, Math.min(300, parseFloat(e.tar
 $('showcam').onchange = e => { showCam = e.target.checked; };
 
 // ── Yeux dessinés (image caméra masquée) ─────────────────────────────────
+// Un clignement réel n'atteint presque jamais 1 : à partir de 0.8 la paupière est complètement fermée (plus de blanc ni d'iris visibles)
+const lidOf = s => Math.min(1, s * 1.25);
 function drawEye(cx, cy, closure, gx, big) {
   const w = 125, h = 88;
   const ctrlOpen = cy - 2 * h;
-  const lidCtrl = ctrlOpen + closure * 3.8 * h;       // bord de la paupière
+  const lidCtrl = ctrlOpen + closure * 4 * h;       // bord de la paupière
   const crease = ctrlOpen - 40;                         // haut de la paupière
   const almond = () => {
     ctx.beginPath();
@@ -322,7 +324,7 @@ function drawFullFace() {
   ctx.beginPath(); ctx.moveTo(212,166); ctx.quadraticCurveTo(252,148,292,164); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(348,164); ctx.quadraticCurveTo(388,148,428,166); ctx.stroke();
   // yeux animés (image miroir : l'œil gauche de l'utilisateur est dessiné à gauche)
-  for (const [x, cl] of [[252, scoreL], [388, scoreR]]) { ctx.save(); ctx.translate(x, 206); ctx.scale(0.3, 0.3); drawEye(0, 0, cl, gazeX, false); ctx.restore(); }
+  for (const [x, cl] of [[252, lidOf(scoreL)], [388, lidOf(scoreR)]]) { ctx.save(); ctx.translate(x, 206); ctx.scale(0.3, 0.3); drawEye(0, 0, cl, gazeX, false); ctx.restore(); }
   // cheveux devant : recouvrent le haut de la tête
   ctx.fillStyle = P.hair; ctx.beginPath(); ctx.moveTo(183,196);
   ctx.bezierCurveTo(180,100,238,36,320,36); ctx.bezierCurveTo(402,36,460,100,457,196);
@@ -341,8 +343,8 @@ function drawEyes() {
   if (P.mode === 'eyes') {                       // Regard 1 / 2 : les yeux seuls, en grand
     ctx.fillStyle = P.bg; ctx.fillRect(0, 0, view.width, view.height);
     // image miroir : l'œil gauche de l'utilisateur est dessiné à gauche
-    drawEye(180, 260, scoreL, gazeX, true);
-    drawEye(460, 260, scoreR, gazeX, true);
+    drawEye(180, 260, lidOf(scoreL), gazeX, true);
+    drawEye(460, 260, lidOf(scoreR), gazeX, true);
   } else drawFullFace();                          // Visage 1 / 2 : visage entier
 }
 
