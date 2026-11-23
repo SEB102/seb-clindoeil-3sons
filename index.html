@@ -13,8 +13,8 @@
   .wrap .panel { grid-column:1; grid-row:1; justify-self:start; }
   .wrap .vid { grid-column:2; grid-row:1; }
   @media (max-width:1000px) { .wrap { grid-template-columns:minmax(0,1fr); justify-items:center; } .wrap .panel, .wrap .vid { grid-column:1; justify-self:center; } .wrap .vid { grid-row:1; } .wrap .panel { grid-row:2; } }
-  .vid { position:relative; width:640px; max-width:100%; background:#000; border-radius:10px; overflow:hidden; }
-  canvas { display:block; width:100%; height:auto; }
+  .vid { position:relative; width:640px; max-width:100%; background:transparent; overflow:hidden; }
+  canvas { display:block; width:100%; height:auto; border-radius:50%; }   /* cadre ovale : horizontal (yeux) ou vertical (visage) */
   .panel { width:300px; max-width:100%; background:var(--card); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:12px; }
   button, select, label.btn { background:#262932; color:var(--fg); border:1px solid #363a46; border-radius:8px; padding:8px 10px; font:inherit; cursor:pointer; text-align:center; }
   button.main { background:var(--acc); color:#001317; border-color:var(--acc); font-weight:600; padding:9px 12px; }
@@ -45,6 +45,9 @@
   #exit-fs { display:none; }
   .vid:fullscreen #exit-fs, .vid:-webkit-full-screen #exit-fs, .vid.pseudo-fs #exit-fs { display:flex; align-items:center; justify-content:center; position:absolute; right:14px; bottom:14px; z-index:7; width:38px; height:38px; padding:0; opacity:.45; background:rgba(0,0,0,.55); color:#fff; border-color:rgba(255,255,255,.35); }
   #exit-fs:hover, #exit-fs:focus-visible { opacity:1; }
+  /* Visage entier : ovale vertical, plus étroit (canvas 480×640) */
+  .wrap .vid.portrait { width:min(100%, 440px); justify-self:center; }
+  .vid.portrait:fullscreen canvas, .vid.portrait:-webkit-full-screen canvas, .vid.portrait.pseudo-fs canvas { width:min(100vw, calc(100vh * 3 / 4)); height:min(100vh, calc(100vw * 4 / 3)); }
   footer { position:fixed; left:0; right:0; bottom:0; z-index:5; background:var(--bg); border-top:1px solid #2a2d38; padding:8px 12px; text-align:center; color:var(--mut); font-size:12px; letter-spacing:.08em; line-height:1.7; }
   footer a { color:#a9b6ff; text-decoration:underline; text-underline-offset:3px; }
   footer a:hover { color:#fff; }
@@ -291,9 +294,10 @@ function drawEye(cx, cy, closure, gx, big) {
 function headPath() { ctx.beginPath(); ctx.moveTo(320,40); ctx.bezierCurveTo(402,40,456,104,456,188); ctx.bezierCurveTo(456,282,404,394,320,396); ctx.bezierCurveTo(236,394,184,282,184,188); ctx.bezierCurveTo(184,104,238,40,320,40); ctx.closePath(); }
 function drawFullFace() {
   const afro = P.afro;
-  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, view.width, view.height);
+  ctx.save(); ctx.setTransform(1.1, 0, 0, 1.1, -112, 32);      // le dessin (640×480) est recadré dans le canvas portrait 480×640
+  ctx.fillStyle = P.bg; ctx.fillRect(-400, -200, 1500, 1100);
   // épaules, cou, col
-  ctx.fillStyle = P.shirt; ctx.beginPath(); ctx.moveTo(60,480); ctx.bezierCurveTo(70,420,200,392,320,392); ctx.bezierCurveTo(440,392,570,420,580,480); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = P.shirt; ctx.beginPath(); ctx.moveTo(60,480); ctx.bezierCurveTo(70,420,200,392,320,392); ctx.bezierCurveTo(440,392,570,420,580,480); ctx.closePath(); ctx.fill(); ctx.fillRect(60,470,520,300);
   ctx.fillStyle = P.shade; ctx.beginPath(); ctx.moveTo(272,330); ctx.lineTo(368,330); ctx.lineTo(380,410); ctx.bezierCurveTo(350,430,290,430,260,410); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(262,408); ctx.quadraticCurveTo(320,445,378,408); ctx.stroke();
   // cheveux derrière la tête
@@ -325,8 +329,15 @@ function drawFullFace() {
   if (afro) { ctx.bezierCurveTo(448,140,400,104,320,104); ctx.bezierCurveTo(240,104,192,140,183,196); }
   else { ctx.bezierCurveTo(452,150,420,118,372,108); ctx.bezierCurveTo(330,136,262,132,214,112); ctx.bezierCurveTo(196,132,186,164,183,196); }
   ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+// Forme du cadre : ovale horizontal (640×480) pour les yeux et la caméra, ovale vertical (480×640) pour le visage entier
+function setShape(face) {
+  const W = face ? 480 : 640, H = face ? 640 : 480;
+  if (view.width !== W || view.height !== H) { view.width = W; view.height = H; document.querySelector('.vid').classList.toggle('portrait', face); }
 }
 function drawEyes() {
+  setShape(P.mode !== 'eyes');
   if (P.mode === 'eyes') {                       // Regard 1 / 2 : les yeux seuls, en grand
     ctx.fillStyle = P.bg; ctx.fillRect(0, 0, view.width, view.height);
     // image miroir : l'œil gauche de l'utilisateur est dessiné à gauche
@@ -442,6 +453,7 @@ function frame() {
       if (detGR.update(gr, now) === 'close') play('right');
     }
   }
+  if (showCam) setShape(false);
   if (showCam && running) {
     ctx.save(); ctx.translate(view.width, 0); ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, view.width, view.height); ctx.restore();
@@ -453,8 +465,8 @@ function frame() {
   if (running && !center.ready) drawMire();
   if (running && actx && actx.state !== 'running') {
     ctx.save(); ctx.font = 'bold 20px -apple-system, system-ui, sans-serif'; ctx.textAlign = 'center';
-    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText('Cliquez pour activer le son', view.width / 2, view.height - 24);
-    ctx.fillStyle = '#ffd24a'; ctx.fillText('Cliquez pour activer le son', view.width / 2, view.height - 24); ctx.restore();
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText('Cliquez pour activer le son', view.width / 2, view.height * 0.82);
+    ctx.fillStyle = '#ffd24a'; ctx.fillText('Cliquez pour activer le son', view.width / 2, view.height * 0.82); ctx.restore();
   }
   requestAnimationFrame(frame);
 }
